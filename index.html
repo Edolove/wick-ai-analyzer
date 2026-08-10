@@ -1,0 +1,58 @@
+<!doctype html><html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.json">
+<title>Wick AI Analyzer V2</title>
+<style>
+body{margin:0;font-family:Arial;background:#0b1020;color:#eee}.wrap{max-width:900px;margin:auto;padding:16px}
+h1{font-size:24px}.bar,.card{background:#151d2e;border-radius:14px;padding:14px;margin:10px 0}
+button,select{padding:12px;border:0;border-radius:9px;margin:4px;background:#2563eb;color:#fff;font-weight:bold}
+.status{padding:12px;border-radius:10px;background:#263143}.signal{text-align:center;font-size:30px;font-weight:800;padding:18px;border-radius:12px;margin:10px 0}
+.green{background:#14532d}.red{background:#7f1d1d}.yellow{background:#713f12}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.stat{background:#202a3c;padding:10px;border-radius:9px}
+small{color:#aab3c5}.mono{font-family:monospace}
+</style></head><body><div class="wrap">
+<h1>WICK AI ANALYZER — V2</h1>
+<div class="bar"><button id="install" hidden>INSTALLER L’APP</button>
+<select id="symbol"><option value="btcusdt">BTC/USDT — flux démo temps réel</option><option value="ethusdt">ETH/USDT — flux démo temps réel</option></select>
+<button onclick="start()">DÉMARRER</button><button onclick="stop()">ARRÊTER</button></div>
+<div class="status" id="status">V2 prête. Cette version utilise un flux public de marché pour valider le moteur temps réel; elle ne lit pas encore les cotations OTC de Pocket Option.</div>
+<div id="signal" class="signal yellow">ATTENDRE</div>
+<div class="card"><div class="grid">
+<div class="stat">Prix<br><b id="price">—</b></div><div class="stat">EMA 9<br><b id="e9">—</b></div>
+<div class="stat">EMA 50<br><b id="e50">—</b></div><div class="stat">RSI 14<br><b id="rsi">—</b></div>
+<div class="stat">MACD<br><b id="macd">—</b></div><div class="stat">Score<br><b id="score">—</b></div>
+</div></div>
+<div class="card"><b>Journal temps réel</b><div id="log" class="mono"></div></div>
+<div class="card"><small>Mode analyse uniquement. Aucun ordre, aucune connexion à un compte de trading. Les performances passées ne garantissent pas les résultats futurs.</small></div>
+</div>
+<script>
+let ws=null, closes=[], candles=[], timer=null, deferredPrompt=null;
+const $=id=>document.getElementById(id);
+function log(s){$("log").innerHTML=("["+new Date().toLocaleTimeString()+"] "+s+"<br>")+$("log").innerHTML.slice(0,5000)}
+function ema(a,p){if(!a.length)return 0;let k=2/(p+1),x=a[0];for(let i=1;i<a.length;i++)x=a[i]*k+x*(1-k);return x}
+function rsi(a,p=14){if(a.length<p+1)return 50;let g=0,l=0;for(let i=a.length-p;i<a.length;i++){let d=a[i]-a[i-1];g+=Math.max(d,0);l+=Math.max(-d,0)}g/=p;l/=p;return l?100-100/(1+g/l):100}
+function macd(a){return ema(a,12)-ema(a,26)}
+function tick(price){
+ closes.push(price);if(closes.length>250)closes.shift();
+ let e9=ema(closes,9),e50=ema(closes,50),R=rsi(closes),M=macd(closes);
+ $("price").textContent=price.toFixed(2);$("e9").textContent=e9.toFixed(2);$("e50").textContent=e50.toFixed(2);
+ $("rsi").textContent=R.toFixed(1);$("macd").textContent=M.toFixed(4);
+ let c=0,p=0;if(price>e50)c++;if(e9>e50)c++;if(R>50)c++;if(M>0)c++;
+ if(price<e50)p++;if(e9<e50)p++;if(R<50)p++;if(M<0)p++;
+ let s="ATTENDRE",cl="yellow",sc=Math.max(c,p);
+ if(c>=3&&c>p){s="🟢 BIAIS HAUSSIER";cl="green"}else if(p>=3&&p>c){s="🔴 BIAIS BAISSIER";cl="red"}
+ $("signal").className="signal "+cl;$("signal").textContent=s;$("score").textContent=sc+"/4";
+}
+function start(){
+ stop();let sym=$("symbol").value;
+ ws=new WebSocket("wss://stream.binance.com:9443/ws/"+sym+"@trade");
+ ws.onopen=()=>{$("status").textContent="Flux temps réel connecté.";log("Connexion OK")};
+ ws.onmessage=e=>{let d=JSON.parse(e.data);tick(+d.p)};
+ ws.onerror=()=>{$("status").textContent="Erreur de flux.";log("Erreur WebSocket")};
+ ws.onclose=()=>log("Flux arrêté");
+}
+function stop(){if(ws){ws.close();ws=null}}
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;$("install").hidden=false});
+$("install").onclick=async()=>{if(deferredPrompt){deferredPrompt.prompt();deferredPrompt=null}};
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script></body></html>
