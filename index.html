@@ -1,58 +1,9 @@
-<!doctype html><html lang="fr"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.json">
-<title>Wick AI Analyzer V2</title>
-<style>
-body{margin:0;font-family:Arial;background:#0b1020;color:#eee}.wrap{max-width:900px;margin:auto;padding:16px}
-h1{font-size:24px}.bar,.card{background:#151d2e;border-radius:14px;padding:14px;margin:10px 0}
-button,select{padding:12px;border:0;border-radius:9px;margin:4px;background:#2563eb;color:#fff;font-weight:bold}
-.status{padding:12px;border-radius:10px;background:#263143}.signal{text-align:center;font-size:30px;font-weight:800;padding:18px;border-radius:12px;margin:10px 0}
-.green{background:#14532d}.red{background:#7f1d1d}.yellow{background:#713f12}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.stat{background:#202a3c;padding:10px;border-radius:9px}
-small{color:#aab3c5}.mono{font-family:monospace}
-</style></head><body><div class="wrap">
-<h1>WICK AI ANALYZER — V2</h1>
-<div class="bar"><button id="install" hidden>INSTALLER L’APP</button>
-<select id="symbol"><option value="btcusdt">BTC/USDT — flux démo temps réel</option><option value="ethusdt">ETH/USDT — flux démo temps réel</option></select>
-<button onclick="start()">DÉMARRER</button><button onclick="stop()">ARRÊTER</button></div>
-<div class="status" id="status">V2 prête. Cette version utilise un flux public de marché pour valider le moteur temps réel; elle ne lit pas encore les cotations OTC de Pocket Option.</div>
-<div id="signal" class="signal yellow">ATTENDRE</div>
-<div class="card"><div class="grid">
-<div class="stat">Prix<br><b id="price">—</b></div><div class="stat">EMA 9<br><b id="e9">—</b></div>
-<div class="stat">EMA 50<br><b id="e50">—</b></div><div class="stat">RSI 14<br><b id="rsi">—</b></div>
-<div class="stat">MACD<br><b id="macd">—</b></div><div class="stat">Score<br><b id="score">—</b></div>
-</div></div>
-<div class="card"><b>Journal temps réel</b><div id="log" class="mono"></div></div>
-<div class="card"><small>Mode analyse uniquement. Aucun ordre, aucune connexion à un compte de trading. Les performances passées ne garantissent pas les résultats futurs.</small></div>
-</div>
-<script>
-let ws=null, closes=[], candles=[], timer=null, deferredPrompt=null;
-const $=id=>document.getElementById(id);
-function log(s){$("log").innerHTML=("["+new Date().toLocaleTimeString()+"] "+s+"<br>")+$("log").innerHTML.slice(0,5000)}
-function ema(a,p){if(!a.length)return 0;let k=2/(p+1),x=a[0];for(let i=1;i<a.length;i++)x=a[i]*k+x*(1-k);return x}
-function rsi(a,p=14){if(a.length<p+1)return 50;let g=0,l=0;for(let i=a.length-p;i<a.length;i++){let d=a[i]-a[i-1];g+=Math.max(d,0);l+=Math.max(-d,0)}g/=p;l/=p;return l?100-100/(1+g/l):100}
-function macd(a){return ema(a,12)-ema(a,26)}
-function tick(price){
- closes.push(price);if(closes.length>250)closes.shift();
- let e9=ema(closes,9),e50=ema(closes,50),R=rsi(closes),M=macd(closes);
- $("price").textContent=price.toFixed(2);$("e9").textContent=e9.toFixed(2);$("e50").textContent=e50.toFixed(2);
- $("rsi").textContent=R.toFixed(1);$("macd").textContent=M.toFixed(4);
- let c=0,p=0;if(price>e50)c++;if(e9>e50)c++;if(R>50)c++;if(M>0)c++;
- if(price<e50)p++;if(e9<e50)p++;if(R<50)p++;if(M<0)p++;
- let s="ATTENDRE",cl="yellow",sc=Math.max(c,p);
- if(c>=3&&c>p){s="🟢 BIAIS HAUSSIER";cl="green"}else if(p>=3&&p>c){s="🔴 BIAIS BAISSIER";cl="red"}
- $("signal").className="signal "+cl;$("signal").textContent=s;$("score").textContent=sc+"/4";
-}
-function start(){
- stop();let sym=$("symbol").value;
- ws=new WebSocket("wss://stream.binance.com:9443/ws/"+sym+"@trade");
- ws.onopen=()=>{$("status").textContent="Flux temps réel connecté.";log("Connexion OK")};
- ws.onmessage=e=>{let d=JSON.parse(e.data);tick(+d.p)};
- ws.onerror=()=>{$("status").textContent="Erreur de flux.";log("Erreur WebSocket")};
- ws.onclose=()=>log("Flux arrêté");
-}
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111827"><title>Wick AI Analyzer V3</title><style>
+body{margin:0;background:#0b1220;color:#eef2ff;font-family:Arial}.wrap{max-width:900px;margin:auto;padding:16px}.panel,.card{background:#151f33;border:1px solid #26324a;border-radius:18px;padding:16px;margin:12px 0}select,button{border:0;border-radius:12px;padding:13px;margin:4px;font-size:16px}select{background:#24304a;color:#fff;width:100%}button{background:#2563eb;color:#fff;font-weight:bold}.stop{background:#374151}.signal{text-align:center;padding:20px;border-radius:18px;font-size:38px;font-weight:bold}.call{background:#14532d;color:#86efac}.put{background:#7f1d1d;color:#fecaca}.wait{background:#3f3f46;color:#eee}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.metric{background:#202b41;border-radius:14px;padding:13px}.metric b{display:block;font-size:19px;margin-top:5px}.small{color:#aab5ca;font-size:13px}.bar{height:10px;background:#273248;border-radius:10px;overflow:hidden}.fill{height:100%;width:0;background:#60a5fa}.log{font:12px monospace;max-height:160px;overflow:auto;white-space:pre-wrap}@media(min-width:700px){.grid{grid-template-columns:repeat(3,1fr)}}</style></head><body><div class="wrap"><h1>WICK AI ANALYZER — V3</h1><div class="panel"><div class="small">Flux public temps réel Binance Spot</div><select id="symbol"><option value="btcusdt">BTC/USDT</option><option value="ethusdt">ETH/USDT</option><option value="bnbusdt">BNB/USDT</option><option value="solusdt">SOL/USDT</option><option value="xrpusdt">XRP/USDT</option><option value="adausdt">ADA/USDT</option><option value="dogeusdt">DOGE/USDT</option><option value="linkusdt">LINK/USDT</option></select><button onclick="start()">DÉMARRER</button><button class="stop" onclick="stop()">ARRÊTER</button><span id="conn" class="small">Hors ligne</span></div><div id="signal" class="signal wait">ATTENTE</div><div class="card"><div class="grid"><div class="metric">Prix<b id="price">—</b></div><div class="metric">RSI(14)<b id="rsi">—</b></div><div class="metric">EMA 9<b id="ema9">—</b></div><div class="metric">EMA 50<b id="ema50">—</b></div><div class="metric">MACD<b id="macd">—</b></div><div class="metric">Bougie<b id="candle">—</b></div></div></div><div class="card">Confiance <span id="confidence">0%</span><div class="bar"><div id="fill" class="fill"></div></div><p class="small" id="reason">Attente de données.</p><div class="grid"><div class="metric">Score CALL<b id="callScore">0</b></div><div class="metric">Score PUT<b id="putScore">0</b></div><div class="metric">Pré-alerte<b id="early">—</b></div></div></div><div class="card"><b>Important</b><p class="small">Lecture technique expérimentale, sans garantie de résultat. Le score n'est pas une certitude et ne supprime pas le risque.</p></div><div class="card"><b>Journal</b><div id="log" class="log"></div></div></div><script>
+let ws=null,candles=[];const $=x=>document.getElementById(x);function log(s){$("log").textContent=`[${new Date().toLocaleTimeString()}] ${s}\n`+$("log").textContent}
+function ema(a,n){if(a.length<n)return null;let k=2/(n+1),e=a.slice(0,n).reduce((x,y)=>x+y,0)/n;for(let i=n;i<a.length;i++)e=a[i]*k+e*(1-k);return e}
+function rsi(a,n=14){if(a.length<n+1)return null;let g=0,l=0;for(let i=a.length-n;i<a.length;i++){let d=a[i]-a[i-1];d>=0?g+=d:l-=d}if(!l)return 100;return 100-100/(1+(g/n)/(l/n))}
+function analyse(){if(candles.length<55)return;let a=candles.map(x=>x.close),x=candles.at(-1),e9=ema(a,9),e50=ema(a,50),r=rsi(a),m=ema(a,12)-ema(a,26),range=Math.max(x.high-x.low,1e-12),body=Math.abs(x.close-x.open),bull=x.close>x.open,upper=(x.high-Math.max(x.open,x.close))/range,lower=(Math.min(x.open,x.close)-x.low)/range,cs=0,ps=0;if(e9>e50)cs+=2;else ps+=2;if(r>50&&r<70)cs+=2;if(r<50&&r>30)ps+=2;if(r>=70)ps++;if(r<=30)cs++;m>0?cs+=2:ps+=2;bull?cs++:ps++;if(body/range>.6)(bull?cs++:ps++);if(lower>.45)cs++;if(upper>.45)ps++;let total=cs+ps,d=Math.abs(cs-ps),conf=Math.min(95,Math.round(50+d/Math.max(total,1)*45)),sig="ATTENTE",cl="wait";if(total>=7&&d>=3&&conf>=70){sig=cs>ps?"CALL":"PUT";cl=cs>ps?"call":"put"}$("signal").textContent=sig;$("signal").className="signal "+cl;$("price").textContent=x.close.toFixed(4);$("rsi").textContent=r.toFixed(2);$("ema9").textContent=e9.toFixed(4);$("ema50").textContent=e50.toFixed(4);$("macd").textContent=m.toFixed(5);$("candle").textContent=(bull?"VERTE ":"ROUGE ")+(body/range*100).toFixed(0)+"%";$("callScore").textContent=cs;$("putScore").textContent=ps;$("confidence").textContent=conf+"%";$("fill").style.width=conf+"%";$("reason").textContent=(e9>e50?"EMA9>EMA50":"EMA9<EMA50")+" • RSI "+r.toFixed(1)+" • MACD "+(m>0?"haussier":"baissier");$("early").textContent=sig==="ATTENTE"?"SURVEILLER":"CONFIGURATION "+sig}
+function start(){stop();let s=$("symbol").value;ws=new WebSocket("wss://stream.binance.com:9443/ws/"+s+"@kline_1m");ws.onopen=()=>{ $("conn").textContent="● Connecté";log("Flux temps réel OK")};ws.onerror=()=>log("Erreur de flux");ws.onclose=()=>{$("conn").textContent="Déconnecté"};ws.onmessage=e=>{let k=JSON.parse(e.data).k;$("price").textContent=(+k.c).toFixed(4);if(k.x){candles.push({open:+k.o,high:+k.h,low:+k.l,close:+k.c});if(candles.length>300)candles.shift();analyse();log("Bougie 1 min clôturée")}}}
 function stop(){if(ws){ws.close();ws=null}}
-window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;$("install").hidden=false});
-$("install").onclick=async()=>{if(deferredPrompt){deferredPrompt.prompt();deferredPrompt=null}};
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 </script></body></html>
