@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.json">
+<title>Wick AI Analyzer V3 Smart</title>
+<style>
+body{margin:0;background:#0b1220;color:#eef2ff;font-family:Arial,sans-serif}.wrap{max-width:760px;margin:auto;padding:18px}
+h1{font-size:25px}.card{background:#151f33;border-radius:18px;padding:16px;margin:12px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.box{background:#202b42;padding:13px;border-radius:12px}
+button,select{padding:13px;border:0;border-radius:12px;font-size:16px;margin:4px}button{background:#2563eb;color:#fff;font-weight:bold}.stop{background:#374151}
+.signal{text-align:center;padding:25px;border-radius:16px;font-size:38px;font-weight:900}.call{background:#14532d}.put{background:#7f1d1d}.wait{background:#374151}
+.small{color:#aab5cc}
+</style></head><body><div class="wrap">
+<h1>WICK AI ANALYZER — V3 SMART</h1>
+<div class="card">
+<select id="symbol"></select><select id="tf"><option value="1m">1 minute</option><option value="3m">3 minutes</option><option value="5m">5 minutes</option></select>
+<button onclick="start()">DÉMARRER</button><button class="stop" onclick="stop()">ARRÊTER</button>
+</div>
+<div id="status" class="card small">Flux arrêté</div><div id="signal" class="signal wait">ATTENDRE</div>
+<div class="card grid">
+<div class="box">Prix<br><b id="price">—</b></div><div class="box">RSI 14<br><b id="rsi">—</b></div>
+<div class="box">EMA 9 / 21<br><b id="ema">—</b></div><div class="box">MACD<br><b id="macd">—</b></div>
+<div class="box">Score CALL<br><b id="call">—</b></div><div class="box">Score PUT<br><b id="put">—</b></div>
+</div>
+<div class="card"><b>Pré-signal</b><p id="presignal">Recherche d'une configuration…</p>
+<p class="small">Le moteur peut détecter une configuration avant la clôture de la bougie. Aucun ordre n'est envoyé et aucune réussite n'est garantie.</p></div>
+<div class="card"><b>Marchés surveillés</b><p id="markets" class="small"></p></div>
+</div>
+<script>
+const symbols=["btcusdt","ethusdt","bnbusdt","solusdt","xrpusdt","adausdt","dogeusdt","avaxusdt","linkusdt","dotusdt","ltcusdt","trxusdt"];
+let ws=null,candles=[];
+const $=x=>document.getElementById(x);
+$("symbol").innerHTML=symbols.map(x=>`<option value="${x}">${x.toUpperCase()}</option>`).join("");
+$("markets").textContent=symbols.map(x=>x.toUpperCase()).join(" • ");
+function ema(a,n){if(a.length<n)return null;let k=2/(n+1),e=a.slice(0,n).reduce((x,y)=>x+y,0)/n;for(let i=n;i<a.length;i++)e=a[i]*k+e*(1-k);return e}
+function rsi(a,n=14){if(a.length<n+1)return null;let g=0,l=0;for(let i=a.length-n;i<a.length;i++){let d=a[i]-a[i-1];if(d>0)g+=d;else l-=d}if(!l)return 100;let rs=g/l;return 100-100/(1+rs)}
+function analyze(){
+ let a=candles.map(x=>x.c),p=a[a.length-1];if(a.length<55)return;
+ let e9=ema(a,9),e21=ema(a,21),rr=rsi(a),e12=ema(a,12),e26=ema(a,26),mm=e12-e26,call=0,put=0;
+ if(e9>e21)call+=3;else put+=3;if(rr>52)call+=2;if(rr<48)put+=2;if(mm>0)call+=2;else put+=2;
+ let b=candles[candles.length-1],body=Math.abs(b.c-b.o),lo=Math.min(b.o,b.c)-b.l,hi=b.h-Math.max(b.o,b.c);
+ if(lo>body*1.5)call+=2;if(hi>body*1.5)put+=2;
+ $("price").textContent=p.toFixed(2);$("rsi").textContent=rr.toFixed(2);$("ema").textContent=e9.toFixed(2)+" / "+e21.toFixed(2);$("macd").textContent=mm.toFixed(4);
+ $("call").textContent=call;$("put").textContent=put;
+ let s=$("signal"),d=call-put;s.className="signal";
+ if(Math.abs(d)>=5){if(d>0){s.classList.add("call");s.textContent="CALL";$("presignal").textContent="Pré-signal CALL : confluence technique détectée."}else{s.classList.add("put");s.textContent="PUT";$("presignal").textContent="Pré-signal PUT : confluence technique détectée."}}
+ else{s.classList.add("wait");s.textContent="ATTENDRE";$("presignal").textContent="Pas assez de confluence."}
+}
+function connect(){
+ if(ws)ws.close();candles=[];let sym=$("symbol").value,tf=$("tf").value;
+ ws=new WebSocket("wss://stream.binance.com:9443/ws/"+sym+"@kline_"+tf);
+ ws.onopen=()=>{$("status").textContent="Flux temps réel connecté : "+sym.toUpperCase()};
+ ws.onmessage=e=>{let k=JSON.parse(e.data).k,b={o:+k.o,h:+k.h,l:+k.l,c:+k.c};$("price").textContent=b.c.toFixed(2);if(k.x){candles.push(b);if(candles.length>300)candles.shift();analyze()}};
+ ws.onerror=()=>{$("status").textContent="Erreur de flux. Vérifiez Internet."};
+ ws.onclose=()=>{$("status").textContent="Flux arrêté"};
+}
+function start(){connect()}function stop(){if(ws){ws.close();ws=null}$("signal").className="signal wait";$("signal").textContent="ARRÊTÉ"}
+</script></body></html>

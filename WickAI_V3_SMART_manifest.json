@@ -1,0 +1,10 @@
+{
+  "name": "Wick AI Analyzer V3 Smart",
+  "short_name": "WickAI V3",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#111827",
+  "lang": "fr",
+  "icons": []
+}
