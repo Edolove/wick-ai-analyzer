@@ -1,29 +1,12 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111827"><link rel="manifest" href="manifest.json"><title>Wick AI Analyzer V4 Smart</title><style>
-*{box-sizing:border-box}body{margin:0;font-family:Arial;background:#07101f;color:#eef2ff}header{padding:18px;text-align:center;background:#0d1729}h1{font-size:22px;margin:0}.sub{font-size:12px;color:#aab7d0}.wrap{max-width:760px;margin:auto;padding:12px}.p{background:#111c30;border:1px solid #24334f;border-radius:18px;padding:14px;margin-bottom:12px}.row,.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}select,button{width:100%;padding:13px;border:0;border-radius:12px;font-weight:700;font-size:15px}select{background:#202d45;color:#fff}button{background:#2d6df6;color:#fff}.stop{background:#39465c}.signal{border-radius:18px;padding:18px;text-align:center;margin-bottom:12px;border:2px solid #39465c;background:#332c0b}.call{background:#073d2b;border-color:#16a66a}.put{background:#4a1720;border-color:#e25c68}.signal h2{font-size:42px;margin:5px}.muted{color:#aab7d0}.card{background:#18243a;border-radius:13px;padding:12px}.label{font-size:12px;color:#aab7d0}.value{font-size:20px;font-weight:800;margin-top:5px}.good{color:#57d99a}.bad{color:#ff6d78}.warn{color:#e6cf57}.bar{height:11px;background:#273650;border-radius:99px;overflow:hidden;margin-top:8px}.fill{height:100%;background:#58c77a}.alert{text-align:center;padding:10px;border-radius:12px;background:#222f47;font-weight:700}table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:8px;border-bottom:1px solid #273650;text-align:left}th{color:#9fb0cc}.log{font:11px monospace;color:#9fb0cc;max-height:130px;overflow:auto}@media(max-width:500px){.row,.grid{grid-template-columns:1fr 1fr}}</style></head>
-<body><header><h1>WICK AI ANALYZER — V4 SMART</h1><div class="sub">Double analyse • confluence • pré-alerte 7 secondes</div></header><main class="wrap">
-<section class="p"><div class="row"><select id="sym"><option value="btcusdt">BTC/USDT</option><option value="ethusdt">ETH/USDT</option><option value="solusdt">SOL/USDT</option><option value="bnbusdt">BNB/USDT</option><option value="xrpusdt">XRP/USDT</option><option value="adausdt">ADA/USDT</option><option value="dogeusdt">DOGE/USDT</option></select><select id="tf"><option>1m</option><option>3m</option><option>5m</option></select></div><div class="row" style="margin-top:10px"><button onclick="start()">DÉMARRER</button><button class="stop" onclick="stop()">ARRÊTER</button></div><div id="status" class="alert" style="margin-top:10px">En attente…</div></section>
-<section id="sig" class="signal"><div class="muted">SIGNAL PRINCIPAL</div><h2 id="dir">ATTENTE</h2><b id="prob" style="font-size:27px">—</b><div id="count" class="muted">—</div></section>
-<section class="p"><h3>🎯 DOUBLE ANALYSE</h3><div class="grid"><div class="card"><div class="label">Tendance générale</div><div id="trend" class="value">—</div></div><div class="card"><div class="label">Prochaine bougie</div><div id="next" class="value">—</div></div><div class="card"><div class="label">Confluence</div><div id="conf" class="value">—</div></div><div class="card"><div class="label">Décision</div><div id="decision" class="value">—</div></div></div></section>
-<section class="p"><h3>📊 POURCENTAGES</h3><div class="grid"><div class="card"><div class="label">CALL</div><div id="cp" class="value good">—</div><div class="bar"><div id="cb" class="fill"></div></div></div><div class="card"><div class="label">PUT</div><div id="pp" class="value bad">—</div><div class="bar"><div id="pb" class="fill"></div></div></div></div><p class="muted" style="font-size:11px">Scores estimés, non garanties. À calibrer avec un backtest.</p></section>
-<section class="p"><h3>🧠 FACTEURS</h3><table><thead><tr><th>Facteur</th><th>Lecture</th><th>Direction</th></tr></thead><tbody id="fac"></tbody></table></section>
-<section class="p"><h3>⏱️ PRÉ-ALERTE</h3><div id="pre" class="alert">En attente des données…</div></section>
-<section class="p"><h3>📜 Journal</h3><div id="log" class="log"></div></section>
-</main>
-<script>
-let ws=null,tm=null,cs=[],lastAlert=0;
-const $=x=>document.getElementById(x), lg=x=>{$("log").innerHTML=`[${new Date().toLocaleTimeString()}] ${x}<br>`+$("log").innerHTML};
-function ema(a,n){if(a.length<n)return null;let k=2/(n+1),e=a.slice(0,n).reduce((x,y)=>x+y)/n;for(let i=n;i<a.length;i++)e=a[i]*k+e*(1-k);return e}
-function rsi(a,n=14){if(a.length<n+1)return 50;let g=0,l=0;for(let i=a.length-n;i<a.length;i++){let d=a[i]-a[i-1];d>0?g+=d:l-=d}return l?100-100/(1+g/l):100}
-function st(a,n=14){if(a.length<n)return 50;let x=a.slice(-n),h=Math.max(...x.map(z=>z.h)),l=Math.min(...x.map(z=>z.l));return h==l?50:(x.at(-1).c-l)/(h-l)*100}
-function analyze(){
- if(cs.length<55)return;let a=cs.map(x=>x.c),z=cs.at(-1),e9=ema(a,9),e21=ema(a,21),e50=ema(a,50),R=rsi(a),S=st(cs),M=e9-e21,B=(()=>{let x=a.slice(-20),m=x.reduce((s,v)=>s+v)/20,sd=Math.sqrt(x.reduce((s,v)=>s+(v-m)**2,0)/20);return sd?(a.at(-1)-(m-2*sd))/(4*sd)*100:50})();
- let tr=Math.max(5,Math.min(95,50+(e9>e21?18:-18)+(e21>e50?12:-12)+(M>0?10:-10)+(R>50?7:-7)));
- let ns=Math.max(5,Math.min(95,50+(S<25?18:S>75?-18:0)+(R<30?15:R>70?-15:0)+(B<20?15:B>80?-15:0)+(z.c>z.o?8:-8)));
- let call=Math.round(ns*.65+tr*.35),put=100-call,trend=tr>=55?"CALL":"PUT",next=ns>=55?"CALL":"PUT",agree=trend==next,gap=Math.abs(call-put),dec=agree&&gap>=14?(call>50?"CALL":"PUT"):"ATTENDRE";
- $("trend").innerHTML=`${trend} ${tr}%`;$("next").innerHTML=`${next} ${ns}%`;$("conf").textContent=agree?`🟢 FORTE (${gap} pts)`:"🔴 CONFLIT";$("decision").textContent=dec;$("cp").textContent=call+"%";$("pp").textContent=put+"%";$("cb").style.width=call+"%";$("pb").style.width=put+"%";$("dir").textContent=dec;$("prob").textContent=Math.max(call,put)+"%";$("sig").className="signal "+(dec=="CALL"?"call":dec=="PUT"?"put":"");
- $("fac").innerHTML=[["EMA 9/21",e9>e21?"haussière":"baissière",e9>e21?"CALL":"PUT"],["MACD",M>0?"haussier":"baissier",M>0?"CALL":"PUT"],["RSI",R.toFixed(1),R<30?"CALL rebond":R>70?"PUT repli":"NEUTRE"],["Stoch",S.toFixed(1),S<25?"CALL potentiel":S>75?"PUT potentiel":"NEUTRE"],["Bollinger",B.toFixed(1)+"%",B<20?"CALL potentiel":B>80?"PUT potentiel":"NEUTRE"],["Bougie",z.c>=z.o?"positive":"negative",z.c>=z.o?"CALL":"PUT"]].map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td><td>${x[2]}</td></tr>`).join("");
- let sec=Math.max(0,Math.ceil((60000-(Date.now()-z.t))/1000));$("count").textContent=`Prochaine clôture dans ${sec}s`;$("pre").textContent=sec<=7?`🔔 PRÉ-ALERTE ${sec}s — ${dec}`:"Surveillance — alerte à 7s";if(sec<=7&&sec>0&&Date.now()-lastAlert>900){lastAlert=Date.now();lg(`Pré-alerte ${dec} | CALL ${call}% / PUT ${put}%`)}
-}
-function start(){stop();cs=[];let s=$("sym").value,t=$("tf").value;ws=new WebSocket(`wss://stream.binance.com:9443/ws/${s}@kline_${t}`);ws.onopen=()=>{ $("status").textContent="🟢 Flux temps réel connecté";lg("Connexion OK")};ws.onmessage=e=>{let k=JSON.parse(e.data).k,x={t:k.t,o:+k.o,h:+k.h,l:+k.l,c:+k.c};if(cs.length&&cs.at(-1).t==x.t)cs[cs.length-1]=x;else cs.push(x);if(cs.length>300)cs.shift();$("status").textContent=`🟢 ${s.toUpperCase()} • ${x.c}`;analyze()};ws.onerror=()=>{$("status").textContent="🔴 Erreur de flux";lg("Erreur WebSocket")};ws.onclose=()=>lg("Flux fermé");tm=setInterval(analyze,500);lg("V4 Smart démarré")}
-function stop(){if(ws)ws.close();ws=null;if(tm)clearInterval(tm);tm=null}
-</script></body></html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wick AI V6 Pro</title>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
